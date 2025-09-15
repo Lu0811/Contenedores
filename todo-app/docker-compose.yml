@@ -1,0 +1,58 @@
+services:
+  # Base de datos MongoDB
+  database:
+    build: ./database
+    container_name: todo-database
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: todoapp
+    volumes:
+      - mongodb_data:/data/db
+      - ./database/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - todo-network
+
+  # Backend API (Node.js/Express)
+  backend:
+    build: ./backend
+    container_name: todo-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGODB_URI=mongodb://database:27017/todoapp
+      - NODE_ENV=production
+    depends_on:
+      - database
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - todo-network
+
+  # Frontend (React)
+  frontend:
+    build: ./frontend
+    container_name: todo-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000/api
+    depends_on:
+      - backend
+    networks:
+      - todo-network
+
+# Volúmenes para persistir datos
+volumes:
+  mongodb_data:
+    driver: local
+
+# Red personalizada para permitir comunicación entre contenedores
+networks:
+  todo-network:
+    driver: bridge
